@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Test any new AI model on your own tasks. Build a short prompt, run it in your own chat, get a Fit, Borderline or Not yet verdict.">
+<title>Model Fit Test</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Shippori+Mincho:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  /* Layout: one centered column of steps (set up, run, optional review, read), sumi-ink and rice-paper palette with a hanko-red seal as the only bold mark. */
+  :root {
+    --paper: #EEF0EF;
+    --surface: #F9FAF9;
+    --ink: #14181B;
+    --ink-soft: #55605F;
+    --line: #CBD2D0;
+    --hanko: #C23A2E;
+    --good: #2C7A58;
+    --warn: #A86E12;
+    --on-ink: #F4F5F3;
+    --font-display: 'Shippori Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
+    --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #121516; --surface: #1A1E1F; --ink: #E9ECEA; --ink-soft: #9AA5A3; --line: #2E3637;
+      --hanko: #E2564A; --good: #5CC59A; --warn: #E0A64A; --on-ink: #121516;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #121516; --surface: #1A1E1F; --ink: #E9ECEA; --ink-soft: #9AA5A3; --line: #2E3637;
+    --hanko: #E2564A; --good: #5CC59A; --warn: #E0A64A; --on-ink: #121516;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.55;
+    padding-inline: 16px;
+    padding-block: 40px 72px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 40px; counter-reset: step; }
+
+  /* Header */
+  header { display: flex; flex-direction: column; gap: 22px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .seal {
+    flex: none; width: 44px; height: 44px; background: var(--hanko); color: #fff;
+    display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 26px;
+    border-radius: 3px; transform: rotate(-4deg); box-shadow: inset 0 0 0 2px rgba(255,255,255,.35);
+  }
+  h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(2rem, 6vw, 3rem); line-height: 1.05; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+  .verse { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.1rem, 3.2vw, 1.35rem); line-height: 1.5; margin: 0; color: var(--ink); }
+  .verse span { display: block; }
+  .lede { max-width: 62ch; margin: 0; color: var(--ink-soft); }
+
+  /* Icons */
+  .ico { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .seal .ico { width: 28px; height: 28px; }
+  h2 { display: flex; align-items: center; gap: 10px; }
+  .ico-h { width: 28px; height: 28px; color: var(--hanko); }
+  .vhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .vico { width: 38px; height: 38px; }
+  .vico.fit { color: var(--good); }
+  .vico.mid { color: var(--warn); }
+  .vico.no { color: var(--hanko); }
+  .pun { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); }
+  @media (prefers-reduced-motion: no-preference) {
+    @keyframes lift { 0%, 100% { transform: translateY(0) rotate(0); } 40% { transform: translateY(-5px) rotate(-8deg); } 70% { transform: translateY(0) rotate(4deg); } }
+    .verdict:hover .vico, .brand:hover .seal .ico { animation: lift .6s ease-in-out; }
+  }
+
+  /* Steps */
+  section.step { display: grid; grid-template-columns: 2.4rem minmax(0, 1fr); column-gap: 12px; row-gap: 14px; }
+  .step-n { font-family: var(--font-display); font-weight: 800; font-size: 2rem; line-height: 1; color: var(--hanko); padding-top: 2px; }
+  .step-n::before { counter-increment: step; content: counter(step); }
+  .step-body { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+  h2 { font-family: var(--font-display); font-weight: 800; font-size: 1.5rem; line-height: 1.2; margin: 0; text-wrap: balance; }
+  .sub { margin: -8px 0 0; color: var(--ink-soft); max-width: 62ch; }
+
+  .label { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); display: block; margin-bottom: 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font: inherit; font-size: 14px; cursor: pointer; color: var(--ink); background: transparent;
+    border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px;
+  }
+  .chip:hover { border-color: var(--ink); }
+  .chip[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+
+  input[type="text"], textarea {
+    width: 100%; font: inherit; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px;
+  }
+  textarea { resize: vertical; min-height: 4.6rem; line-height: 1.5; }
+  input[type="text"]:focus, textarea:focus, .chip:focus-visible, button:focus-visible, input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--ink); outline-offset: 2px;
+  }
+  .tasks { display: grid; gap: 14px; }
+  .note { font-size: 13px; color: var(--ink-soft); margin: 0; }
+  .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .pair > div { min-width: 0; }
+
+  /* Mode switch */
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; align-self: flex-start; max-width: 100%; flex-wrap: wrap; }
+  .seg button {
+    font: inherit; font-size: 14px; cursor: pointer; color: var(--ink); background: transparent; border: 0; padding: 9px 16px; text-align: left;
+  }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
+  .seg small { display: block; font-size: 12px; opacity: .75; }
+
+  .toggle { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+  .toggle input { margin-top: 4px; accent-color: var(--ink); width: 16px; height: 16px; flex: none; }
+  .toggle span { min-width: 0; }
+  .toggle small { display: block; color: var(--ink-soft); font-size: 13px; }
+
+  /* Prompt blocks */
+  .prompt { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); display: flex; flex-direction: column; min-width: 0; }
+  .prompt-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .prompt-title { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .prompt textarea { border: 0; border-radius: 0 0 8px 8px; background: transparent; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.55; max-height: 22rem; min-height: 9rem; resize: vertical; }
+  .btn {
+    font: inherit; font-weight: 500; font-size: 14px; cursor: pointer; border-radius: 6px; padding: 8px 16px;
+    background: var(--ink); color: var(--on-ink); border: 1px solid var(--ink);
+  }
+  .btn:hover { opacity: .88; }
+  .how { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; color: var(--ink-soft); max-width: 62ch; }
+  .how b { color: var(--ink); font-weight: 500; }
+
+  /* Verdict legend */
+  .verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+  .verdict { border: 1px solid var(--line); border-radius: 8px; padding: 16px; background: var(--surface); display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .stamp {
+    align-self: flex-start; font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; letter-spacing: 0.06em;
+    padding: 4px 12px; border: 3px double currentColor; border-radius: 3px; transform: rotate(-3deg);
+  }
+  .stamp.fit { color: var(--good); }
+  .stamp.mid { color: var(--warn); }
+  .stamp.no { color: var(--hanko); }
+  .verdict p { margin: 0; font-size: 14px; }
+  .verdict .rule { font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft); }
+
+  footer { color: var(--ink-soft); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; }
+
+  @media (max-width: 520px) {
+    section.step { grid-template-columns: 1fr; }
+    .step-n { font-size: 1.6rem; }
+    .seg { display: flex; flex-direction: column; width: 100%; }
+    .seg button + button { border-left: 0; border-top: 1px solid var(--line); }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .chip, .btn, .seg button { transition: background-color .15s, color .15s, border-color .15s, opacity .15s; }
+  }
+</style>
+<style>
+  /* Standalone-page basics (the artifact viewer normally supplies these) */
+  :root { color-scheme: light; }
+  body { margin: 0; }
+  [hidden] { display: none !important; }
+  img { max-width: 100%; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M7 7v10M17 7v10M4 9.5v5M20 9.5v5M7 12h10"/></symbol>
+    <symbol id="i-scale" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 10a4 4 0 0 1 8 0"/><path d="M12 10l1.8-2"/></symbol>
+    <symbol id="i-stopwatch" viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7"/><path d="M12 13.5V10M10 3h4M12 3v3.5M18.5 7l1.5-1.5"/></symbol>
+    <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="5.5" y="4.5" width="13" height="16.5" rx="2"/><path d="M9 4.5V3.5h6v1M9 13l2 2 4-4.5"/></symbol>
+    <symbol id="i-medal" viewBox="0 0 24 24"><circle cx="12" cy="15" r="5"/><path d="M8.5 3l3.5 7 3.5-7M12 12.8v4.4"/></symbol>
+    <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3s6.5 6.8 6.5 11.2a6.5 6.5 0 0 1-13 0C5.5 9.8 12 3 12 3z"/><path d="M9 15a3 3 0 0 0 3 3"/></symbol>
+    <symbol id="i-rest" viewBox="0 0 24 24"><path d="M4 5.5h6l-6 7.5h6M13 12h5l-5 6.5h5"/></symbol>
+  </defs>
+</svg>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="seal" aria-hidden="true"><svg class="ico"><use href="#i-dumbbell"/></svg></div>
+      <h1>Model Fit Test</h1>
+    </div>
+    <p class="verse" aria-label="Your task, your rules. Run it on the new model. See if it fits you.">
+      <span>Your task, your rules.</span>
+      <span>Run it on the new model.</span>
+      <span>See if it fits you.</span>
+    </p>
+    <p class="lede">A new model is out and everyone says it is great. Whether it is good enough depends on your work. This page builds a short test from your own tasks. You run it in your own chat app and read the verdict. It works for any model.</p>
+    <p class="note">This is a quick check on your own tasks, not a benchmark. See how a model handles your real work first, then decide if it is worth rebuilding any workflows around.</p>
+  </header>
+
+  <section class="step" aria-labelledby="h-setup">
+    <div class="step-n" aria-hidden="true"></div>
+    <div class="step-body">
+      <h2 id="h-setup"><svg class="ico ico-h" aria-hidden="true"><use href="#i-scale"/></svg>Describe your work</h2>
+      <p class="sub">Pick the closest niche to load three example tasks, then replace them with real ones. Real tasks give a real answer.</p>
+
+      <div>
+        <label class="label" for="role">Your role</label>
+        <input type="text" id="role" autocomplete="off">
+      </div>
+
+      <div>
+        <span class="label" id="niche-label">Niche</span>
+        <div class="chips" id="chips" role="group" aria-labelledby="niche-label"></div>
+      </div>
+
+      <div class="tasks" id="tasks"></div>
+      <p class="note" id="example-note">These are example tasks. Edit them or paste your own.</p>
+
+      <div>
+        <label class="label" for="good">What good looks like</label>
+        <textarea id="good" rows="3"></textarea>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" aria-labelledby="h-run">
+    <div class="step-n" aria-hidden="true"></div>
+    <div class="step-body">
+      <h2 id="h-run"><svg class="ico ico-h" aria-hidden="true"><use href="#i-stopwatch"/></svg>Run the test</h2>
+
+      <div class="seg" role="group" aria-label="Test mode">
+        <button type="button" id="mode-quick" aria-pressed="true">Quick<small>One paste, self-graded</small></button>
+        <button type="button" id="mode-strict" aria-pressed="false">Strict<small>Two chats, a second model grades</small></button>
+      </div>
+
+      <ol class="how">
+        <li>Open <b>Claude</b> and start a new chat.</li>
+        <li>In the model picker, <b>make sure the model you want to test is selected</b>.</li>
+        <li>Paste this prompt and send it.</li>
+        <li class="quick-only">Read the stamp at the end of the reply. A model grading itself leans generous, so treat a FIT as promising. Switch to Strict for a harder check.</li>
+        <li class="strict-only" hidden>Wait for the three answers, then go on to the review step below.</li>
+        <li class="compare-only" hidden>Repeat in a second new chat on <b>your usual model</b> with the same prompt.</li>
+      </ol>
+
+      <label class="toggle strict-only" for="compare" hidden>
+        <input type="checkbox" id="compare">
+        <span>Also test my usual model
+          <small>Adds a second set of answers to the review. The reviewer scores both without being told which is which.</small>
+        </span>
+      </label>
+
+      <div class="prompt">
+        <div class="prompt-bar">
+          <span class="prompt-title" id="promptA-title">Prompt · test and self-grade</span>
+          <button class="btn" type="button" data-copy="promptA">Copy prompt</button>
+        </div>
+        <textarea id="promptA" readonly aria-label="Test prompt"></textarea>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="judge" aria-labelledby="h-judge" hidden>
+    <div class="step-n" aria-hidden="true"></div>
+    <div class="step-body">
+      <h2 id="h-judge"><svg class="ico ico-h" aria-hidden="true"><use href="#i-clipboard"/></svg>Have a reviewer score it</h2>
+      <p class="sub">A model grading its own answers is too kind. Use a new chat on a bigger model, such as the one you use today.</p>
+      <ol class="how">
+        <li>Open a new chat on your <b>usual model</b>.</li>
+        <li>Paste this prompt.</li>
+        <li>Replace the bracketed spots with the answers from the last step.</li>
+      </ol>
+      <div class="prompt">
+        <div class="prompt-bar">
+          <span class="prompt-title">Prompt · the review</span>
+          <button class="btn" type="button" data-copy="promptB">Copy prompt</button>
+        </div>
+        <textarea id="promptB" readonly aria-label="Review prompt"></textarea>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" aria-labelledby="h-read">
+    <div class="step-n" aria-hidden="true"></div>
+    <div class="step-body">
+      <h2 id="h-read"><svg class="ico ico-h" aria-hidden="true"><use href="#i-medal"/></svg>Read the stamp</h2>
+      <p class="sub">Each task gets a 1 to 5 score, and the result ends with one of three verdicts.</p>
+      <div class="verdicts">
+        <div class="verdict">
+          <div class="vhead"><div class="stamp fit">FIT</div><svg class="ico vico fit" aria-hidden="true"><use href="#i-dumbbell"/></svg></div>
+          <span class="pun">Ready to train</span>
+          <p>Switch these tasks to the new model and keep the savings.</p>
+          <span class="rule">Average 4 or more, no task under 3</span>
+        </div>
+        <div class="verdict">
+          <div class="vhead"><div class="stamp mid">BORDERLINE</div><svg class="ico vico mid" aria-hidden="true"><use href="#i-drop"/></svg></div>
+          <span class="pun">Needs a warm-up</span>
+          <p>Good for some tasks. Route the weak ones to a bigger model.</p>
+          <span class="rule">Average 3 to 3.9, or one task under 3</span>
+        </div>
+        <div class="verdict">
+          <div class="vhead"><div class="stamp no">NOT YET</div><svg class="ico vico no" aria-hidden="true"><use href="#i-rest"/></svg></div>
+          <span class="pun">Rest day</span>
+          <p>Stay where you are. Test again after the next update.</p>
+          <span class="rule">Anything lower</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    This page sends nothing anywhere. Your tasks stay in your browser until you paste them into your own chat.
+  </footer>
+</div>
+
+<script>
+(function () {
+  var NICHES = [
+    {
+      id: 'sales', name: 'Sales and outreach', role: 'outbound sales rep',
+      good: 'Reads like a person wrote it. No filler openers. Nothing invented beyond the facts I gave. Ready to send as is.',
+      tasks: [
+        'Write a 90-word cold email to Dana Reyes, VP of RevOps at Lumo, a 200-person SaaS company that just hired its second RevOps analyst. The email is about cutting the time her team spends building lead lists by hand. Open with the hiring detail and end with a single question.',
+        'A prospect replied "Not now, circle back next quarter." Write a reply that keeps the door open without pushing. Under 50 words.',
+        'Turn these call notes into a 5-bullet CRM summary with a next step and an owner: "Uses HubSpot. 4 SDRs. Worried about deliverability. Wants a demo with their ops lead Priya next week. Budget not discussed."'
+      ]
+    },
+    {
+      id: 'support', name: 'Customer support', role: 'customer support lead',
+      good: 'Calm and accurate. Makes no promises I did not give. Matches the facts in the task. Labels are correct.',
+      tasks: [
+        'Reply to an angry customer who was charged twice for the annual plan. Apologize once, explain the refund steps in plain words, 120 words max. Refunds take 5 to 7 business days.',
+        'Classify each ticket as billing, bug, how-to or feature request, and give urgency 1 to 3: (a) "Can I export to Excel?" (b) "App crashes on login since today\'s update" (c) "I was charged after cancelling" (d) "Please add dark mode" (e) "Where do I change my email?"',
+        'Rewrite this internal note as a two-sentence help-center notice: "CSV export breaks over 50MB, use the API until the fix ships Thursday."'
+      ]
+    },
+    {
+      id: 'content', name: 'Content and marketing', role: 'content marketer',
+      good: 'Specific, not generic. No buzzwords like "unlock" or "game-changer". Five hooks that differ from each other, not one idea reworded.',
+      tasks: [
+        'Write five LinkedIn post hooks for a post about why most cold emails fail. Each under 15 words. No questions.',
+        'Turn these bullets into a 150-word blog intro: replies drop after 3 follow-ups; subject lines over 6 words get fewer opens; personalization beats volume; send times matter less than relevance.',
+        'Rewrite this sentence to be shorter and clearer: "In order to be able to achieve better results with our outreach efforts, it is important that teams make sure they are focusing on the quality of their lists."'
+      ]
+    },
+    {
+      id: 'eng', name: 'Engineering', role: 'software engineer',
+      good: 'Code runs as written. Finds the real bug. Invents no APIs. Concise.',
+      tasks: [
+        'Write a TypeScript function that groups an array of { id: string, tags: string[] } by tag and returns a Map<string, string[]> of tag to ids. Handle empty arrays and duplicate tags on one item.',
+        'Explain what this does and find the bug: for (let i = 0; i <= items.length; i++) { total += items[i].price }',
+        'Write a concise commit message and PR description for: renamed userId to accountId across the billing module and added a database migration for the column rename.'
+      ]
+    },
+    {
+      id: 'ops', name: 'Data and ops', role: 'operations analyst',
+      good: 'Output format is valid every time. Logic is correct. Nothing invented. Missing information is marked unknown.',
+      tasks: [
+        'Extract company, role and email from this text into a JSON array: "Met Dana Reyes, Head of Growth at Lumo (dana@lumo.io). Also Ken from Brightpath, no role given, ken.ito@brightpath.co."',
+        'Write a SQL query for monthly active users from events(user_id, event_type, created_at), counting users with at least one event_type = \'login\' in each calendar month.',
+        'Summarize this into decisions, owners and deadlines: "We will move onboarding emails to the new tool. Sam owns the migration, due Nov 3. Pricing page test is paused until Priya reviews the data. Nobody has picked an owner for the churn survey."'
+      ]
+    },
+    {
+      id: 'research', name: 'Research', role: 'research analyst',
+      good: 'Reasoning is sound. No made-up statistics. Makes a clear call where I ask for one.',
+      tasks: [
+        'In 120 words, give the trade-offs between building and buying an internal tool for a 20-person team, and end with a recommendation.',
+        'Write a 5-question interview guide for talking to customers who recently churned from a B2B SaaS product.',
+        'List three reasons a pricing page A/B test could show a false positive, with one line on how to check for each.'
+      ]
+    },
+    {
+      id: 'custom', name: 'Something else', role: '',
+      good: '',
+      tasks: ['', '', '']
+    }
+  ];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var all = function (sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); };
+  var chipsEl = $('chips'), tasksEl = $('tasks'), roleEl = $('role'), goodEl = $('good');
+  var compareEl = $('compare'), promptA = $('promptA'), promptB = $('promptB'), noteEl = $('example-note');
+  var taskEls = [];
+  var current = null;
+  var mode = 'quick';
+
+  for (var i = 0; i < 3; i++) {
+    var wrap = document.createElement('div');
+    var lab = document.createElement('label');
+    lab.className = 'label'; lab.setAttribute('for', 'task' + (i + 1)); lab.textContent = 'Task ' + (i + 1);
+    var ta = document.createElement('textarea');
+    ta.id = 'task' + (i + 1); ta.rows = 3;
+    wrap.appendChild(lab); wrap.appendChild(ta); tasksEl.appendChild(wrap);
+    taskEls.push(ta);
+  }
+
+  NICHES.forEach(function (n) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.textContent = n.name; b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', function () { choose(n.id); });
+    b.dataset.id = n.id;
+    chipsEl.appendChild(b);
+  });
+
+  function choose(id) {
+    var n = NICHES.filter(function (x) { return x.id === id; })[0];
+    current = n;
+    all('#chips .chip').forEach(function (c) { c.setAttribute('aria-pressed', c.dataset.id === id ? 'true' : 'false'); });
+    roleEl.value = n.role;
+    goodEl.value = n.good;
+    taskEls.forEach(function (t, k) { t.value = n.tasks[k]; });
+    noteEl.textContent = id === 'custom'
+      ? 'Paste three real tasks you do today. Include any background the model would need.'
+      : 'These are example tasks. Edit them or paste your own.';
+    render();
+  }
+
+  function setMode(m) {
+    mode = m;
+    $('mode-quick').setAttribute('aria-pressed', m === 'quick' ? 'true' : 'false');
+    $('mode-strict').setAttribute('aria-pressed', m === 'strict' ? 'true' : 'false');
+    render();
+  }
+  $('mode-quick').addEventListener('click', function () { setMode('quick'); });
+  $('mode-strict').addEventListener('click', function () { setMode('strict'); });
+
+  function val(el, fallback) { var v = el.value.trim(); return v || fallback; }
+
+  function render() {
+    var model = 'this model';
+    var role = val(roleEl, 'professional');
+    var good = val(goodEl, '(not specified)');
+    var t = taskEls.map(function (el, k) { return val(el, '(task ' + (k + 1) + ' left blank)'); });
+    var strict = mode === 'strict';
+    var compare = strict && compareEl.checked;
+    var nicheName = current ? current.name.toLowerCase() : 'my work';
+
+    var verdictRule = 'VERDICT: FIT if the average is 4 or more and no task is below 3. BORDERLINE if the average is 3 to 3.9 or one task is below 3. NOT YET otherwise.';
+
+    var text;
+    if (!strict) {
+      text = [
+        'My role: ' + role + '. I want to find out whether ' + model + ' is good enough for my work. Do the three tasks below, then grade yourself strictly.',
+        '',
+        'Rules for the tasks:',
+        '- Do not ask clarifying questions. Make reasonable assumptions and list them in one short line after each answer.',
+        '- Give finished work, not an outline of what you would do.',
+        '',
+        'What good looks like for me: ' + good,
+        '',
+        'TASK 1',
+        t[0],
+        '',
+        'TASK 2',
+        t[1],
+        '',
+        'TASK 3',
+        t[2],
+        '',
+        'Label your answers TASK 1, TASK 2 and TASK 3.',
+        '',
+        'AFTER THE THREE ANSWERS, change roles. You are now a strict reviewer whose job is to catch problems, not to defend your own work. Rules for the review:',
+        '- Judge only against "what good looks like for me".',
+        '- Assume each answer is flawed until you have checked it. Quote the weakest sentence in each answer.',
+        '- Flag anything you stated as fact that you cannot support.',
+        '- Do not reward length or polish for its own sake.',
+        '',
+        'Score each task from 1 to 5 on: meets my bar, follows the instructions, accurate (nothing invented), ready to use without edits.',
+        '',
+        'Then give me:',
+        '1. A table of scores by task.',
+        '2. ' + verdictRule,
+        '3. The single biggest miss, quoted.',
+        '4. Which of these tasks I could move to ' + model + ' today and which I should keep on a bigger model.',
+        '5. You graded your own work, so name the one score you are least sure is fair and say whether it may be too high.',
+        '6. One line I can post: "I tested [model name] on ' + nicheName + ': [verdict], because [reason]."'
+      ].join('\n');
+      promptB.value = '';
+    } else {
+      text = [
+        'My role: ' + role + '. I am testing you on three real tasks from my work. Do each one as you would for a colleague who will use it right away.',
+        '',
+        'Rules:',
+        '- Do not ask clarifying questions. Make reasonable assumptions and list them in one short line after each answer.',
+        '- Give finished work, not an outline of what you would do.',
+        '',
+        'What good looks like for me: ' + good,
+        '',
+        'TASK 1',
+        t[0],
+        '',
+        'TASK 2',
+        t[1],
+        '',
+        'TASK 3',
+        t[2],
+        '',
+        'Label your answers TASK 1, TASK 2 and TASK 3. Write nothing else.'
+      ].join('\n');
+
+      var B = [
+        'You are a strict reviewer. A person whose role is ' + role + ' tested ' + (compare ? 'two models' : model) + ' on three real tasks. Judge the answers only against what this person says good looks like. Do not reward length or polish for its own sake. Flag anything that looks invented.',
+        '',
+        'What good looks like: ' + good,
+        '',
+        'THE TASKS',
+        '1. ' + t[0],
+        '2. ' + t[1],
+        '3. ' + t[2],
+        '',
+        compare ? 'ANSWER SET 1' : 'THE ANSWERS',
+        '[Paste the full output from the model you tested here]',
+        ''
+      ];
+      if (compare) { B.push('ANSWER SET 2', '[Paste the full output from your usual model here]', ''); }
+      B.push(
+        'Score ' + (compare ? 'each set' : 'each task') + ' from 1 to 5 on these four points:',
+        '- Meets my bar',
+        '- Follows the instructions in the task',
+        '- Accurate (nothing invented)',
+        '- Ready to use without edits',
+        '',
+        'Then give me:',
+        '1. A table of scores by task' + (compare ? ' and by set' : '') + '.',
+        '2. ' + (compare ? 'For Answer Set 1, ' : '') + verdictRule,
+        compare ? '3. Which set is better overall and by how much. Do not guess which model wrote which.' : '3. The single biggest miss, quoted.',
+        '4. Which of these tasks I could move to ' + model + ' today and which I should keep on a bigger model.',
+        '5. One line I can post: "I tested [model name] on ' + nicheName + ': [verdict], because [reason]."'
+      );
+      promptB.value = B.join('\n');
+    }
+
+    promptA.value = text;
+    $('promptA-title').textContent = strict ? 'Prompt A · the test' : 'Prompt · test and self-grade';
+    all('.quick-only').forEach(function (el) { el.hidden = strict; });
+    all('.strict-only').forEach(function (el) { el.hidden = !strict; });
+    all('.compare-only').forEach(function (el) { el.hidden = !compare; });
+    $('judge').hidden = !strict;
+    fit(promptA); if (strict) fit(promptB);
+  }
+
+  function fit(ta) {
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight + 2, 352) + 'px';
+  }
+
+  [roleEl, goodEl].concat(taskEls).forEach(function (el) { el.addEventListener('input', render); });
+  compareEl.addEventListener('change', render);
+
+  all('[data-copy]').forEach(function (btn) {
+    var label = btn.textContent;
+    btn.addEventListener('click', function () {
+      var ta = $(btn.getAttribute('data-copy'));
+      function done(msg) {
+        btn.textContent = msg;
+        setTimeout(function () { btn.textContent = label; }, 2200);
+      }
+      function fallback() { ta.focus(); ta.select(); done('Selected. Press Ctrl or Cmd + C'); }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(ta.value).then(function () { done('Copied'); }, fallback);
+      } else { fallback(); }
+    });
+  });
+
+  choose('sales');
+  window.addEventListener('resize', function () { fit(promptA); if (mode === 'strict') fit(promptB); });
+})();
+</script>
+</body>
+</html>
